@@ -1496,6 +1496,8 @@ class spawn (object):
         mode = tty.tcgetattr(self.STDIN_FILENO)
         tty.setraw(self.STDIN_FILENO)
         try:
+            if type(escape_character) is str:
+                escape_character = escape_character.encode()
             self.__interact_copy(escape_character, input_filter, output_filter)
         finally:
             tty.tcsetattr(self.STDIN_FILENO, tty.TCSAFLUSH, mode)
@@ -1505,7 +1507,7 @@ class spawn (object):
         """This is used by the interact() method.
         """
 
-        while data != '' and self.isalive():
+        while len(data)!=0 and self.isalive():
             n = os.write(fd, data)
             data = data[n:]
 

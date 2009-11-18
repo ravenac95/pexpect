@@ -19,7 +19,7 @@ fingerprint and continue connecting. """
 
     ssh_newkey = 'Are you sure you want to continue connecting'
     child = pexpect.spawn('ssh -l %s %s %s'%(user, host, command))
-    i = child.expect([pexpect.TIMEOUT, ssh_newkey, 'password: '])
+    i = child.expect([pexpect.TIMEOUT, ssh_newkey, '(?i)password: '])
     if i == 0: # Timeout
         print('ERROR!')
         print('SSH could not login. Here is what SSH said:')
@@ -27,8 +27,7 @@ fingerprint and continue connecting. """
         return None
     if i == 1: # SSH does not have the public key. Just accept it.
         child.sendline ('yes')
-        child.expect ('password: ')
-        i = child.expect([pexpect.TIMEOUT, 'password: '])
+        i = child.expect([pexpect.TIMEOUT, '(?i)password: '])
         if i == 0: # Timeout
             print('ERROR!')
             print('SSH could not login. Here is what SSH said:')
@@ -43,6 +42,8 @@ def main ():
     user = input('User: ')
     password = getpass.getpass('Password: ')
     child = ssh_command (user, host, password, '/bin/ls -l')
+    if(child==None):
+        return
     child.expect(pexpect.EOF)
     print(child.before)
 
