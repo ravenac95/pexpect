@@ -32,7 +32,7 @@ child.interact() # Escape character defaults to ^]
 # to each other now.
 
 # At this point the script is running again.
-print 'Left interactve mode.'
+print('Left interactve mode.')
 
 # The rest is not strictly necessary. This just demonstrates a few functions.
 # This makes sure the child is dead; although it would be killed when Python exits.
@@ -41,7 +41,7 @@ if child.isalive():
     child.close()
 # Print the final state of the child. Normally isalive() should be FALSE.
 if child.isalive():
-    print 'Child did not exit gracefully.'
+    print('Child did not exit gracefully.')
 else:
-    print 'Child exited gracefully.'
+    print('Child exited gracefully.')
 

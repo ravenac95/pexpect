@@ -31,8 +31,8 @@ class Chess:
             while self.term.cur_r != r or self.term.cur_c != c:
                 try:
                     k = self.child.read(1, 10)
-                except Exception, e:
-                    print 'EXCEPTION, (r,c):(%d,%d)\n' %(self.term.cur_r, self.term.cur_c)
+                except Exception as e:
+                    print('EXCEPTION, (r,c):(%d,%d)\n' %(self.term.cur_r, self.term.cur_c))
                     sys.stdout.flush()
                 self.term.process (k)
                 fout.write ('(r,c):(%d,%d)\n' %(self.term.cur_r, self.term.cur_c))
@@ -43,7 +43,7 @@ class Chess:
                 if self.term.cur_r == r and self.term.cur_c == c:
                     fout.close()
                     return 1
-            print 'DIDNT EVEN HIT.'
+            print('DIDNT EVEN HIT.')
             fout.close()
             return 1
 
@@ -88,7 +88,7 @@ class Chess:
                 return cm
 
         def switch (self):
-                print 'switching'
+                print('switching')
                 self.child.sendline ('switch')
 
         def set_depth (self, depth):
@@ -100,13 +100,13 @@ class Chess:
                 self.child.sendline ('quit')
 
 def LOG (s):
-    print s
+    print(s)
     sys.stdout.flush ()
     fout = open ('moves.log', 'a')
     fout.write (s + '\n')
     fout.close()
 
-print 'Starting...'
+print('Starting...')
 
 black = Chess()
 white = Chess()

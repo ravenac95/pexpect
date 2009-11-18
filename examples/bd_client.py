@@ -25,7 +25,7 @@ time.sleep(1)
 #s.setblocking(0)
 #s.send('COMMAND' + '\x01' + sys.argv[1])
 s.send(':sendline ' + sys.argv[2])
-print recv_wrapper(s)
+print(recv_wrapper(s))
 s.close()
 sys.exit()
 #while True:

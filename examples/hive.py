@@ -165,7 +165,7 @@ def login (args, cli_username=None, cli_password=None):
         elif cli_username is not None:
             username = cli_username
         else:
-            username = raw_input('%s username: ' % hostname)
+            username = input('%s username: ' % hostname)
         if len(hcd['password']) > 0:
             password = hcd['password']
         elif cli_password is not None:
@@ -176,18 +176,18 @@ def login (args, cli_username=None, cli_password=None):
         hive_connect_info[hostname] = (hostname, username, password, port)
     # build up the list of hive connections using the connection information.
     for hostname in host_names:
-        print 'connecting to', hostname
+        print('connecting to', hostname)
         try:
             fout = file("log_"+hostname, "w")
             hive[hostname] = pxssh.pxssh()
             hive[hostname].login(*hive_connect_info[hostname])
-            print hive[hostname].before
+            print(hive[hostname].before)
             hive[hostname].logfile = fout
-            print '- OK'
-        except Exception, e:
-            print '- ERROR',
-            print str(e)
-            print 'Skipping', hostname
+            print('- OK')
+        except Exception as e:
+            print('- ERROR', end=' ')
+            print(str(e))
+            print('Skipping', hostname)
             hive[hostname] = None
     return host_names, hive
 
@@ -196,7 +196,7 @@ def main ():
     global options, args, CMD_HELP
 
     if options.sameuser:
-        cli_username = raw_input('username: ')
+        cli_username = input('username: ')
     else:
         cli_username = None
 
@@ -209,40 +209,40 @@ def main ():
 
     synchronous_mode = True
     target_hostnames = host_names[:]
-    print 'targetting hosts:', ' '.join(target_hostnames)
+    print('targetting hosts:', ' '.join(target_hostnames))
     while True:
-        cmd = raw_input('CMD (? for help) > ')
+        cmd = input('CMD (? for help) > ')
         cmd = cmd.strip()
         if cmd=='?' or cmd==':help' or cmd==':h':
-            print CMD_HELP
+            print(CMD_HELP)
             continue
         elif cmd==':refresh':
             refresh (hive, target_hostnames, timeout=0.5)
             for hostname in target_hostnames:
                 if hive[hostname] is None:
-                    print '/============================================================================='
-                    print '| ' + hostname + ' is DEAD'
-                    print '\\-----------------------------------------------------------------------------'
+                    print('/=============================================================================')
+                    print('| ' + hostname + ' is DEAD')
+                    print('\\-----------------------------------------------------------------------------')
                 else:
-                    print '/============================================================================='
-                    print '| ' + hostname
-                    print '\\-----------------------------------------------------------------------------'
-                    print hive[hostname].before
-            print '=============================================================================='
+                    print('/=============================================================================')
+                    print('| ' + hostname)
+                    print('\\-----------------------------------------------------------------------------')
+                    print(hive[hostname].before)
+            print('==============================================================================')
             continue
         elif cmd==':resync':
             resync (hive, target_hostnames, timeout=0.5)
             for hostname in target_hostnames:
                 if hive[hostname] is None:
-                    print '/============================================================================='
-                    print '| ' + hostname + ' is DEAD'
-                    print '\\-----------------------------------------------------------------------------'
+                    print('/=============================================================================')
+                    print('| ' + hostname + ' is DEAD')
+                    print('\\-----------------------------------------------------------------------------')
                 else:
-                    print '/============================================================================='
-                    print '| ' + hostname
-                    print '\\-----------------------------------------------------------------------------'
-                    print hive[hostname].before
-            print '=============================================================================='
+                    print('/=============================================================================')
+                    print('| ' + hostname)
+                    print('\\-----------------------------------------------------------------------------')
+                    print(hive[hostname].before)
+            print('==============================================================================')
             continue
         elif cmd==':sync':
             synchronous_mode = True
@@ -256,9 +256,9 @@ def main ():
                 try:
                     if hive[hostname] is not None:
                         hive[hostname].set_unique_prompt()
-                except Exception, e:
-                    print "Had trouble communicating with %s, so removing it from the target list." % hostname
-                    print str(e)
+                except Exception as e:
+                    print("Had trouble communicating with %s, so removing it from the target list." % hostname)
+                    print(str(e))
                     hive[hostname] = None
             continue
         elif cmd[:5] == ':send':
@@ -267,65 +267,65 @@ def main ():
                 try:
                     if hive[hostname] is not None:
                         hive[hostname].send(txt)
-                except Exception, e:
-                    print "Had trouble communicating with %s, so removing it from the target list." % hostname
-                    print str(e)
+                except Exception as e:
+                    print("Had trouble communicating with %s, so removing it from the target list." % hostname)
+                    print(str(e))
                     hive[hostname] = None
             continue
         elif cmd[:3] == ':to':
             cmd, hostname, txt = cmd.split(None,2)
             if hive[hostname] is None:
-                print '/============================================================================='
-                print '| ' + hostname + ' is DEAD'
-                print '\\-----------------------------------------------------------------------------'
+                print('/=============================================================================')
+                print('| ' + hostname + ' is DEAD')
+                print('\\-----------------------------------------------------------------------------')
                 continue
             try:
                 hive[hostname].sendline (txt)
                 hive[hostname].prompt(timeout=2)
-                print '/============================================================================='
-                print '| ' + hostname
-                print '\\-----------------------------------------------------------------------------'
-                print hive[hostname].before
-            except Exception, e:
-                print "Had trouble communicating with %s, so removing it from the target list." % hostname
-                print str(e)
+                print('/=============================================================================')
+                print('| ' + hostname)
+                print('\\-----------------------------------------------------------------------------')
+                print(hive[hostname].before)
+            except Exception as e:
+                print("Had trouble communicating with %s, so removing it from the target list." % hostname)
+                print(str(e))
                 hive[hostname] = None
             continue
         elif cmd[:7] == ':expect':
             cmd, pattern = cmd.split(None,1)
-            print 'looking for', pattern
+            print('looking for', pattern)
             try:
                 for hostname in target_hostnames:
                     if hive[hostname] is not None:
                         hive[hostname].expect(pattern)
-                        print hive[hostname].before
-            except Exception, e:
-                print "Had trouble communicating with %s, so removing it from the target list." % hostname
-                print str(e)
+                        print(hive[hostname].before)
+            except Exception as e:
+                print("Had trouble communicating with %s, so removing it from the target list." % hostname)
+                print(str(e))
                 hive[hostname] = None
             continue
         elif cmd[:7] == ':target':
             target_hostnames = cmd.split()[1:]
             if len(target_hostnames) == 0 or target_hostnames[0] == all:
                 target_hostnames = host_names[:]
-            print 'targetting hosts:', ' '.join(target_hostnames)
+            print('targetting hosts:', ' '.join(target_hostnames))
             continue
         elif cmd == ':exit' or cmd == ':q' or cmd == ':quit':
             break
         elif cmd[:8] == ':control' or cmd[:5] == ':ctrl' :
             cmd, c = cmd.split(None,1)
             if ord(c)-96 < 0 or ord(c)-96 > 255:
-                print '/============================================================================='
-                print '| Invalid character. Must be [a-zA-Z], @, [, ], \\, ^, _, or ?'
-                print '\\-----------------------------------------------------------------------------'
+                print('/=============================================================================')
+                print('| Invalid character. Must be [a-zA-Z], @, [, ], \\, ^, _, or ?')
+                print('\\-----------------------------------------------------------------------------')
                 continue
             for hostname in target_hostnames:
                 try:
                     if hive[hostname] is not None:
                         hive[hostname].sendcontrol(c)
-                except Exception, e:
-                    print "Had trouble communicating with %s, so removing it from the target list." % hostname
-                    print str(e)
+                except Exception as e:
+                    print("Had trouble communicating with %s, so removing it from the target list." % hostname)
+                    print(str(e))
                     hive[hostname] = None
             continue
         elif cmd == ':esc':
@@ -340,9 +340,9 @@ def main ():
             try:
                 if hive[hostname] is not None:
                     hive[hostname].sendline (cmd)
-            except Exception, e:
-                print "Had trouble communicating with %s, so removing it from the target list." % hostname
-                print str(e)
+            except Exception as e:
+                print("Had trouble communicating with %s, so removing it from the target list." % hostname)
+                print(str(e))
                 hive[hostname] = None
 
         #
@@ -352,20 +352,20 @@ def main ():
             for hostname in target_hostnames:
                 try:
                     if hive[hostname] is None:
-                        print '/============================================================================='
-                        print '| ' + hostname + ' is DEAD'
-                        print '\\-----------------------------------------------------------------------------'
+                        print('/=============================================================================')
+                        print('| ' + hostname + ' is DEAD')
+                        print('\\-----------------------------------------------------------------------------')
                     else:
                         hive[hostname].prompt(timeout=2)
-                        print '/============================================================================='
-                        print '| ' + hostname
-                        print '\\-----------------------------------------------------------------------------'
-                        print hive[hostname].before
-                except Exception, e:
-                    print "Had trouble communicating with %s, so removing it from the target list." % hostname
-                    print str(e)
+                        print('/=============================================================================')
+                        print('| ' + hostname)
+                        print('\\-----------------------------------------------------------------------------')
+                        print(hive[hostname].before)
+                except Exception as e:
+                    print("Had trouble communicating with %s, so removing it from the target list." % hostname)
+                    print(str(e))
                     hive[hostname] = None
-            print '=============================================================================='
+            print('==============================================================================')
     
 def refresh (hive, hive_names, timeout=0.5):
 
@@ -389,7 +389,7 @@ def resync (hive, hive_names, timeout=2, max_attempts=5):
 
     # TODO This is ideal for threading.
     for hostname in hive_names:
-        for attempts in xrange(0, max_attempts):
+        for attempts in range(0, max_attempts):
             if not hive[hostname].prompt(timeout=timeout):
                 break
 
@@ -420,18 +420,18 @@ if __name__ == '__main__':
         (options, args) = parser.parse_args()
         if len(args) < 1:
             parser.error ('missing argument')
-        if options.verbose: print time.asctime()
+        if options.verbose: print(time.asctime())
         main()
-        if options.verbose: print time.asctime()
-        if options.verbose: print 'TOTAL TIME IN MINUTES:',
-        if options.verbose: print (time.time() - start_time) / 60.0
+        if options.verbose: print(time.asctime())
+        if options.verbose: print('TOTAL TIME IN MINUTES:', end=' ')
+        if options.verbose: print((time.time() - start_time) / 60.0)
         sys.exit(0)
-    except KeyboardInterrupt, e: # Ctrl-C
+    except KeyboardInterrupt as e: # Ctrl-C
         raise e
-    except SystemExit, e: # sys.exit()
+    except SystemExit as e: # sys.exit()
         raise e
-    except Exception, e:
-        print 'ERROR, UNEXPECTED EXCEPTION'
-        print str(e)
+    except Exception as e:
+        print('ERROR, UNEXPECTED EXCEPTION')
+        print(str(e))
         traceback.print_exc()
         os._exit(1)

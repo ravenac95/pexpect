@@ -56,7 +56,7 @@ TOPIP_LAST_RUN_STATS = '/var/run/topip.last'
 
 def exit_with_usage():
 
-    print globals()['__doc__']
+    print(globals()['__doc__'])
     os._exit(1)
 
 def stats(r):
@@ -79,7 +79,7 @@ def stats(r):
     sdsq = sum([(i-avg)**2 for i in r])
     s = list(r)
     s.sort()
-    return dict(zip(['med', 'avg', 'stddev', 'min', 'max'] , (s[len(s)//2], avg, (sdsq/len(r))**.5, min(r), max(r))))
+    return dict(list(zip(['med', 'avg', 'stddev', 'min', 'max'] , (s[len(s)//2], avg, (sdsq/len(r))**.5, min(r), max(r)))))
 
 def send_alert (message, subject, addr_from, addr_to, smtp_server='localhost'):
 
@@ -98,29 +98,29 @@ def main():
     ######################################################################
     try:
         optlist, args = getopt.getopt(sys.argv[1:], 'h?valqs:u:p:n:', ['help','h','?','ipv6','stddev='])
-    except Exception, e:
-        print str(e)
+    except Exception as e:
+        print(str(e))
         exit_with_usage()
     options = dict(optlist)
 
     munin_flag = False
     if len(args) > 0:
         if args[0] == 'config':
-            print 'graph_title Netstat Connections per IP'
-            print 'graph_vlabel Socket connections per IP'
-            print 'connections_max.label max'
-            print 'connections_max.info Maximum number of connections per IP'
-            print 'connections_avg.label avg'
-            print 'connections_avg.info Average number of connections per IP'
-            print 'connections_stddev.label stddev'
-            print 'connections_stddev.info Standard deviation'
+            print('graph_title Netstat Connections per IP')
+            print('graph_vlabel Socket connections per IP')
+            print('connections_max.label max')
+            print('connections_max.info Maximum number of connections per IP')
+            print('connections_avg.label avg')
+            print('connections_avg.info Average number of connections per IP')
+            print('connections_stddev.label stddev')
+            print('connections_stddev.info Standard deviation')
             return 0
         elif args[0] != '':
-            print args, len(args)
+            print(args, len(args))
             return 0
             exit_with_usage()
     if [elem for elem in options if elem in ['-h','--h','-?','--?','--help']]:
-        print 'Help:'
+        print('Help:')
         exit_with_usage()
     if '-s' in options:
         hostname = options['-s']
@@ -133,7 +133,7 @@ def main():
         if '-u' in options:
             username = options['-u']
         else:
-            username = raw_input('username: ')
+            username = input('username: ')
         if '-p' in options:
             password = options['-p']
         else:
@@ -199,14 +199,14 @@ def main():
         pass
 
     # remove a few common, uninteresting addresses from the dictionary.
-    ip_list = dict([ (key,value) for key,value in ip_list.items() if '192.168.' not in key])
-    ip_list = dict([ (key,value) for key,value in ip_list.items() if '127.0.0.1' not in key])
+    ip_list = dict([ (key,value) for key,value in list(ip_list.items()) if '192.168.' not in key])
+    ip_list = dict([ (key,value) for key,value in list(ip_list.items()) if '127.0.0.1' not in key])
 
     # sort dict by value (count)
     #ip_list = sorted(ip_list.iteritems(),lambda x,y:cmp(x[1], y[1]),reverse=True)
-    ip_list = ip_list.items()
+    ip_list = list(ip_list.items())
     if len(ip_list) < 1:
-        if verbose: print 'Warning: no networks connections worth looking at.'
+        if verbose: print('Warning: no networks connections worth looking at.')
         return 0
     ip_list.sort(lambda x,y:cmp(y[1],x[1]))
 
@@ -218,13 +218,13 @@ def main():
 
     # print munin-style or verbose results for the stats.
     if munin_flag:
-        print 'connections_max.value', s['max']
-        print 'connections_avg.value', s['avg']
-        print 'connections_stddev.value', s['stddev']
+        print('connections_max.value', s['max'])
+        print('connections_avg.value', s['avg'])
+        print('connections_stddev.value', s['stddev'])
         return 0
     if verbose:
         pprint (s)
-        print
+        print()
         pprint (ip_list[0:average_n])
 
     # load the stats from the last run.
@@ -234,12 +234,12 @@ def main():
         last_stats = {'maxip':None}
 
     if s['maxip'][1] > (s['stddev'] * stddev_trigger) and s['maxip']==last_stats['maxip']:
-        if verbose: print 'The maxip has been above trigger for two consecutive samples.'
+        if verbose: print('The maxip has been above trigger for two consecutive samples.')
         if alert_flag:
-            if verbose: print 'SENDING ALERT EMAIL'
+            if verbose: print('SENDING ALERT EMAIL')
             send_alert(str(s), 'ALERT on %s' % hostname, alert_addr_from, alert_addr_to)
         if log_flag:
-            if verbose: print 'LOGGING THIS EVENT'
+            if verbose: print('LOGGING THIS EVENT')
             fout = file(TOPIP_LOG_FILE,'a')
             #dts = time.strftime('%Y:%m:%d:%H:%M:%S', time.localtime())
             dts = time.asctime()
@@ -249,7 +249,7 @@ def main():
     # save state to TOPIP_LAST_RUN_STATS
     try:
         pickle.dump(s, file(TOPIP_LAST_RUN_STATS,'w'))
-        os.chmod (TOPIP_LAST_RUN_STATS, 0664)
+        os.chmod (TOPIP_LAST_RUN_STATS, 0o664)
     except:
         pass
     # p.logout()
@@ -258,10 +258,10 @@ if __name__ == '__main__':
     try:
         main()
         sys.exit(0)
-    except SystemExit, e:
+    except SystemExit as e:
         raise e
-    except Exception, e:
-        print str(e)
+    except Exception as e:
+        print(str(e))
         traceback.print_exc()
         os._exit(1)
 

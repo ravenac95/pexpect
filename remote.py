@@ -677,22 +677,22 @@ def _test_passwd_db():
 
 def _test_auto_password():
     LOG_FILE = 'remote.log'
-    import commands
-    commands.getstatusoutput('rm -fr %s'%LOG_FILE)
+    import subprocess
+    subprocess.getstatusoutput('rm -fr %s'%LOG_FILE)
     log_file = open(LOG_FILE, 'w+')
 
 #    rsync_cmd = 'rsync -avzp --include=*/ --include=*.py --exclude=* zhichyu@192.158.124.249:/home/zhichyu/probe/v6/ /home/zhichyu/tmp/'
 #    rsync_cmd = 'rsync -avzp --include=*/ --include=*.py --exclude=* geo@x2:/inet/zhichyu/src/ /home/zhichyu/tmp/'
     rsync_cmd = 'rsync -avzp --include=*/ --include=*.py --exclude=* zhichyu@192.158.124.1:/home/zhichyu/probe/v6/ /home/zhichyu/tmp/'
-    print rsync_cmd
+    print(rsync_cmd)
     sess = pexpect.spawn(rsync_cmd, logfile=log_file)
     iret, part_output = auto_password(sess, 'geo.geo', None)
     if(iret!=0):
         # The pexpect session has been closeed appropriately.
         if(iret==-1):
-            print 'Rsync connection failed!'
+            print('Rsync connection failed!')
         else:
-            print 'Rsync authentication failed!'
+            print('Rsync authentication failed!')
     else:
         sess.read()
         sess.close()
@@ -701,8 +701,8 @@ def _test_auto_password():
 
 def _test_multihop():
     LOG_FILE = 'remote.log'
-    import commands
-    commands.getstatusoutput('rm -fr %s'%LOG_FILE)
+    import subprocess
+    subprocess.getstatusoutput('rm -fr %s'%LOG_FILE)
     log_file = open(LOG_FILE, 'w+')
 
     x2 = dict(host='x2',user='geo',password='geo.geo',type='telnet')
@@ -715,14 +715,14 @@ def _test_multihop():
 
     log_file.write('done.\n')
     log_file.close()
-    print 'done.'
+    print('done.')
 
 def _test_unique_prompt():
     import time
     time_start = time.time()
     LOG_FILE = 'remote.log'
-    import commands
-    commands.getstatusoutput('rm -fr %s'%LOG_FILE)
+    import subprocess
+    subprocess.getstatusoutput('rm -fr %s'%LOG_FILE)
     log_file = open(LOG_FILE, 'w+')
     h1 = SshHost('sunfire', 'geouser', 'geouser', logfile=log_file)
     h1.login(True)
@@ -738,7 +738,7 @@ def _test_unique_prompt():
     h2.login()
     h2.switch_user('root','inetinet')
     uptime = h2.docmd('uptime')
-    print 'uptime of xformer2: ', uptime
+    print('uptime of xformer2: ', uptime)
     h2.quit_user()
     h2.logout()
     h2 = TelnetHost('xformer2', 'geo', 'geo.geo', h1)
@@ -747,7 +747,7 @@ def _test_unique_prompt():
     h1.logout()
     log_file.close()
     time_end = time.time()
-    print 'done in %s minutes.'%str((time_end-time_start)/60.0)
+    print('done in %s minutes.'%str((time_end-time_start)/60.0))
 
 '''   h1 = SshHost('127.0.0.1', 'zhichyu', 'sub5f@ct', logfile=log_file)
    h2 = SshHost('127.0.0.1', 'zhichyu', 'sub5f@ct', h1)
