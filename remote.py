@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 '''Remote is a Python module for automating applications which interactive with the remote hosts. 
  
 Features:
@@ -246,7 +246,7 @@ class RemoteShell(object):
         self.s = None
         self.prompt = None
         del self.prompt_stack[:]
-	del self.user_stack[:]
+        del self.user_stack[:]
     def docmd(self, cmd, timeout=60):
         '''Execute cmd in the remote shell and return its output.
         Return None if it's still running when timeout expired.
@@ -373,8 +373,8 @@ class RemoteShell(object):
             self.s.expect(self.GENERIC_PATT_PROMPT)
             self._pop_prompt()
             self._push_prompt(self.GENERIC_PATT_PROMPT)
-	# Force sending SIGHUP to jobs when logout.
-	self.docmd('shopt -s huponexit')
+        # Force sending SIGHUP to jobs when logout.
+        self.docmd('shopt -s huponexit')
         # Make sure all commands/applications' output are in English.
         self.docmd('export LC_MESSAGES="POSIX"')
         # Set unique prompt
@@ -497,7 +497,7 @@ class Multihop(RemoteShell):
     ========
     The switch 192.168.1.15 is only reachable from x2. Run "upname" on switch::
 
-        log_file = open('remote.log','w')
+        log_file = open('remote.log','wb')
         x2 = dict(host='x2',user='geo',password='geo.geo',type='telnet')
         switch = dict(host='192.168.1.15',user='root',password='inetinet',type='ssh')
         hops_info = (x2,switch)
@@ -508,13 +508,13 @@ class Multihop(RemoteShell):
         log_file.close()
     '''
     def __init__(self, hops_info, context_shell=None, logfile=None):
-        super(Multihop, self).__init__(context_shell)
+        assert(len(hops_info)>=1)
+        super(Multihop, self).__init__(hops_info[-1]['host'], hops_info[-1]['user'], None, context_shell)
         self.logfile = logfile
         if(context_shell!=None):
             assert(logfile==None)
         self.hops = list()
         curr_context = context_shell
-        assert(len(hops_info)>=1)
         for hop in hops_info:
             hop_type = hop['type']
             assert(hop_type=='ssh' or hop_type=='telnet')
@@ -527,10 +527,10 @@ class Multihop(RemoteShell):
             self.hops.append(shell)
             curr_context = shell
             logfile = None
-    def login(self):
+    def _login_timely(self):
         assert(self.s==None)
         for ind in range(0, len(self.hops)):
-            iret = self.hops[ind].login()
+            iret = self.hops[ind].login(robust=False)
             if(iret!=0):
                 for ind2 in range(ind-1, -1, -1):
                     self.hops[ind2].logout()
@@ -679,11 +679,13 @@ def _test_auto_password():
     LOG_FILE = 'remote.log'
     import subprocess
     subprocess.getstatusoutput('rm -fr %s'%LOG_FILE)
-    log_file = open(LOG_FILE, 'w+')
+    log_file = open(LOG_FILE, 'wb+')
 
-#    rsync_cmd = 'rsync -avzp --include=*/ --include=*.py --exclude=* zhichyu@192.158.124.249:/home/zhichyu/probe/v6/ /home/zhichyu/tmp/'
+#Good command line:
+    rsync_cmd = 'rsync -avzp --include=*/ --include=*.py --exclude=* zhichyu@192.158.124.249:/home/zhichyu/probe/v6/ /home/zhichyu/tmp/'
+#Bad command line:
 #    rsync_cmd = 'rsync -avzp --include=*/ --include=*.py --exclude=* geo@x2:/inet/zhichyu/src/ /home/zhichyu/tmp/'
-    rsync_cmd = 'rsync -avzp --include=*/ --include=*.py --exclude=* zhichyu@192.158.124.1:/home/zhichyu/probe/v6/ /home/zhichyu/tmp/'
+#    rsync_cmd = 'rsync -avzp --include=*/ --include=*.py --exclude=* zhichyu@192.158.124.1:/home/zhichyu/probe/v6/ /home/zhichyu/tmp/'
     print(rsync_cmd)
     sess = pexpect.spawn(rsync_cmd, logfile=log_file)
     iret, part_output = auto_password(sess, 'geo.geo', None)
@@ -703,7 +705,7 @@ def _test_multihop():
     LOG_FILE = 'remote.log'
     import subprocess
     subprocess.getstatusoutput('rm -fr %s'%LOG_FILE)
-    log_file = open(LOG_FILE, 'w+')
+    log_file = open(LOG_FILE, 'wb+')
 
     x2 = dict(host='x2',user='geo',password='geo.geo',type='telnet')
     switch = dict(host='192.168.1.15',user='root',password='inetinet',type='ssh')
@@ -713,7 +715,7 @@ def _test_multihop():
     shell.docmd('uname -a')
     shell.logout()
 
-    log_file.write('done.\n')
+    log_file.write(b'done.\n')
     log_file.close()
     print('done.')
 
@@ -723,7 +725,7 @@ def _test_unique_prompt():
     LOG_FILE = 'remote.log'
     import subprocess
     subprocess.getstatusoutput('rm -fr %s'%LOG_FILE)
-    log_file = open(LOG_FILE, 'w+')
+    log_file = open(LOG_FILE, 'wb+')
     h1 = SshHost('sunfire', 'geouser', 'geouser', logfile=log_file)
     h1.login(True)
     ssh_path = h1.docmd('which ssh')
@@ -766,10 +768,10 @@ def _test_unique_prompt():
 '''
 
 def main():
-    #_test_passwd_db()
+    _test_passwd_db()
     #_test_auto_password()
     #_test_multihop()
-    _test_unique_prompt()
+    #_test_unique_prompt()
 
 if __name__=='__main__':
     main()

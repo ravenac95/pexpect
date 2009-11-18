@@ -834,7 +834,7 @@ class spawn (object):
             except OSError as e: # Linux does this
                 self.flag_eof = True
                 raise EOF ('End Of File (EOF) in read_nonblocking(). Exception style platform.')
-            if s == '': # BSD style
+            if len(s)==0: # BSD style
                 self.flag_eof = True
                 raise EOF ('End Of File (EOF) in read_nonblocking(). Empty string style platform.')
 
@@ -845,7 +845,7 @@ class spawn (object):
                 self.logfile_read.write (s)
                 self.logfile_read.flush()
 
-            return s
+            return s.decode()
 
         raise ExceptionPexpect ('Reached an unexpected state in read_nonblocking().')
 
@@ -949,6 +949,8 @@ class spawn (object):
         the log. """
 
         time.sleep(self.delaybeforesend)
+        if type(s) is str:
+            s = s.encode()
         if self.logfile is not None:
             self.logfile.write (s)
             self.logfile.flush()
@@ -1222,7 +1224,7 @@ class spawn (object):
             compile_flags = compile_flags | re.IGNORECASE
         compiled_pattern_list = []
         for p in patterns:
-            if type(p) in str:
+            if type(p) is str:
                 compiled_pattern_list.append(re.compile(p, compile_flags))
             elif p is EOF:
                 compiled_pattern_list.append(EOF)
@@ -1629,7 +1631,7 @@ class searcher_string (object):
         if self.timeout_index >= 0:
             ss.append ((self.timeout_index,'    %d: TIMEOUT' % self.timeout_index))
         ss.sort()
-        ss = zip(*ss)[1]
+        ss = list(zip(*ss))[1]
         return '\n'.join(ss)
 
     def search(self, buffer, freshlen, searchwindowsize=None):
@@ -1727,7 +1729,7 @@ class searcher_re (object):
         if self.timeout_index >= 0:
             ss.append ((self.timeout_index,'    %d: TIMEOUT' % self.timeout_index))
         ss.sort()
-        ss = zip(*ss)[1]
+        ss = list(zip(*ss))[1]
         return '\n'.join(ss)
 
     def search(self, buffer, freshlen, searchwindowsize=None):
@@ -1783,8 +1785,8 @@ def which (filename):
 
     # Oddly enough this was the one line that made Pexpect
     # incompatible with Python 1.5.2.
-    #pathlist = p.split (os.pathsep)
-    pathlist = string.split (p, os.pathsep)
+    pathlist = p.split (os.pathsep)
+    #pathlist = string.split (p, os.pathsep)
 
     for path in pathlist:
         f = os.path.join(path, filename)
