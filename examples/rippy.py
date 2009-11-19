@@ -352,11 +352,12 @@ def progress_callback (d=None):
 
 def run(cmd):
     global GLOBAL_LOGFILE
-    print(cmd, file=GLOBAL_LOGFILE)
+    GLOBAL_LOGFILE.write(cmd.encode())
     (command_output, exitstatus) = pexpect.run(cmd, events={pexpect.TIMEOUT:progress_callback}, timeout=5, withexitstatus=True, logfile=GLOBAL_LOGFILE)
     if exitstatus != 0:
-        print("RUN FAILED. RETURNED EXIT STATUS:", exitstatus)
-        print("RUN FAILED. RETURNED EXIT STATUS:", exitstatus, file=GLOBAL_LOGFILE)
+        msg = "RUN FAILED. RETURNED EXIT STATUS: "+ exitstatus
+        print(msg)
+        GLOBAL_LOGFILE.write(msg.encode())
     return (command_output, exitstatus)
 
 def apply_smart (func, args):
@@ -984,10 +985,10 @@ if __name__ == "__main__":
         print(str(e))
         print(str(tb_dump))
         print("==========================================================================")
-        print("==========================================================================", file=GLOBAL_LOGFILE)
-        print("ERROR -- Unexpected exception in script.", file=GLOBAL_LOGFILE)
-        print(str(e), file=GLOBAL_LOGFILE)
-        print(str(tb_dump), file=GLOBAL_LOGFILE)
-        print("==========================================================================", file=GLOBAL_LOGFILE)
+        GLOBAL_LOGFILE.write("==========================================================================\n".encode())
+        GLOBAL_LOGFILE.write("ERROR -- Unexpected exception in script.\n".encode())
+        GLOBAL_LOGFILE.write(str(e).encode())
+        GLOBAL_LOGFILE.write(str(tb_dump).encode())
+        GLOBAL_LOGFILE.write("==========================================================================\n".encode())
         exit_with_usage(3)
 

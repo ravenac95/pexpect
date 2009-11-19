@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 
 """Change passwords on the named machines. passmass host1 host2 host3 . . .
-Note that login shell prompt on remote machine must end in # or $. """
+Note that login shell prompt on remote machine must end in >, # or $. """
 
 import pexpect
 import sys, getpass
 
 USAGE = '''passmass host1 host2 host3 . . .'''
-COMMAND_PROMPT = '[$#] '
+COMMAND_PROMPT = '[>\$#] '
 TERMINAL_PROMPT = r'Terminal type\?'
 TERMINAL_TYPE = 'vt100'
 SSH_NEWKEY = r'Are you sure you want to continue connecting \(yes/no\)\?'
@@ -15,8 +15,8 @@ SSH_NEWKEY = r'Are you sure you want to continue connecting \(yes/no\)\?'
 def login(host, user, password):
 
     child = pexpect.spawn('ssh -l %s %s'%(user, host))
-    fout = file ("LOG.TXT","wb")
-    child.setlog (fout)
+    fout = open ("LOG.TXT","wb")
+    child.logfile = fout
 
     i = child.expect([pexpect.TIMEOUT, SSH_NEWKEY, '[Pp]assword: '])
     if i == 0: # Timeout
@@ -43,20 +43,32 @@ def login(host, user, password):
 def change_password(child, user, oldpassword, newpassword):
 
     child.sendline('passwd') 
-    i = child.expect(['[Oo]ld [Pp]assword', '.current.*password', '[Nn]ew [Pp]assword'])
+    i = child.expect(['(?i)old password:', '(?i)current.*password:', '(?i)new.*password:'])
     # Root does not require old password, so it gets to bypass the next step.
     if i == 0 or i == 1:
         child.sendline(oldpassword)
-        child.expect('[Nn]ew [Pp]assword')
+        child.expect('(?i)new.*password:')
     child.sendline(newpassword)
-    i = child.expect(['[Nn]ew [Pp]assword', '[Rr]etype', '[Rr]e-enter'])
+    child.expect('(?i)new.*password:')
+    child.sendline(newpassword)
+    i = child.expect(['(?i)new.*password:', 'do not match', 'successfully'])
     if i == 0:
         print('Host did not like new password. Here is what it said...')
-        print(child.before)
-	child.send (chr(3)) # Ctrl-C
-        child.sendline('') # This should tell remote passwd command to quit.
-        return
-    child.sendline(newpassword)
+        print(child.before+child.match.string)
+        # On Linux, sending Ctrl-C can't quit passwd. 
+        while(1):
+            child.sendline()
+            # passwd: Authentication token manipulation error
+            r = child.expect(['(?i)new.*password:', 'error'])
+            if(r == 1):
+                break
+        return -1
+    if(i==1):
+        print('Sorry, passwords do not match.')
+        return -2
+    print('Password updated successfully.')
+    return 0
+
 
 def main():
 
@@ -86,5 +98,6 @@ if __name__ == '__main__':
     try:
         main()
     except pexpect.ExceptionPexpect as e:
-        print(str(e))
+        import traceback
+        traceback.print_exc()
 

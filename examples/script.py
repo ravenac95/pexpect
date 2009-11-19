@@ -53,16 +53,17 @@ def main():
     else:
         script_filename = "script.log"
     if '-a' in options:
-        fout = file (script_filename, "ab")
+        fout = open (script_filename, "ab")
     else:
-        fout = file (script_filename, "wb")
+        fout = open (script_filename, "wb")
     if '-c' in options:
         command = options['-c']
     else:
         command = "sh"
 
     # Begin log with date/time in the form CCCCyymm.hhmmss
-    fout.write ('# %4d%02d%02d.%02d%02d%02d \n' % time.localtime()[:-3])
+    msg = '# %4d%02d%02d.%02d%02d%02d \n' % time.localtime()[:-3]
+    fout.write (msg.encode())
     
     ######################################################################
     # Start the interactive session

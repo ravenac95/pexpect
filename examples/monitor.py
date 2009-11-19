@@ -30,7 +30,7 @@ import pexpect
 #
 # Some constants.
 #
-COMMAND_PROMPT = '[#$] ' ### This is way too simple for industrial use -- we will change is ASAP.
+COMMAND_PROMPT = '[>#\$] ' ### This is way too simple for industrial use -- we will change is ASAP.
 TERMINAL_PROMPT = '(?i)terminal type\?'
 TERMINAL_TYPE = 'vt100'
 # This is the prompt we get if SSH does not have the remote host's public key stored in the cache.
@@ -76,29 +76,36 @@ def main():
     #
     # Login via SSH
     #
-    child = pexpect.spawn('ssh -l %s %s'%(user, host))
-    i = child.expect([pexpect.TIMEOUT, SSH_NEWKEY, COMMAND_PROMPT, '(?i)password'])
+    LOGFILE = open('monitor.log','wb')
+    child = pexpect.spawn('ssh -l %s %s'%(user, host),logfile=LOGFILE)
+    i = child.expect([pexpect.TIMEOUT, SSH_NEWKEY, COMMAND_PROMPT, '(?i)password: '])
     if i == 0: # Timeout
         print('ERROR! could not login with SSH. Here is what SSH said:')
         print(child.before, child.after)
         print(str(child))
         sys.exit (1)
-    if i == 1: # In this case SSH does not have the public key cached.
+    elif i == 1: # In this case SSH does not have the public key cached.
         child.sendline ('yes')
-        child.expect ('(?i)password')
-    if i == 2:
+        child.expect ('(?i)password: ')
+    elif i == 2:
         # This may happen if a public key was setup to automatically login.
         # But beware, the COMMAND_PROMPT at this point is very trivial and
         # could be fooled by some output in the MOTD or login message.
         pass
-    if i == 3:
-        child.sendline(password)
-        # Now we are either at the command prompt or
-        # the login process is asking for our terminal type.
-        i = child.expect ([COMMAND_PROMPT, TERMINAL_PROMPT])
-        if i == 1:
-            child.sendline (TERMINAL_TYPE)
-            child.expect (COMMAND_PROMPT)
+    # Reachs the password prompt
+    child.sendline(password)
+    # Now we are either at the command prompt or
+    # the login process is asking for our terminal type.
+    i = child.expect ([COMMAND_PROMPT, TERMINAL_PROMPT, '(?i)password: '])
+    if i == 1:
+        child.sendline (TERMINAL_TYPE)
+        child.expect (COMMAND_PROMPT)
+    elif i == 2:
+        print('ERROR! could not login with SSH. Here is what SSH said:')
+        print(child.buffer)
+        print(str(child))
+        sys.exit (1)
+    # Reachs the shell prompt.
     #
     # Set command prompt to something more unique.
     #

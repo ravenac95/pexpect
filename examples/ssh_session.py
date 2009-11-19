@@ -28,7 +28,10 @@ class ssh_session:
             ]
         
         self.f = open('ssh.out','w')
-            
+    
+    def __del__(self):
+        self.f.close()
+
     def __repr__(self):
 
         outl = 'class :'+self.__class__.__name__
@@ -70,7 +73,6 @@ class ssh_session:
             self.f.write(str(child.before) + str(child.after)+'\n')
         except:
             pass
-        self.f.close()
         return child.before
 
     def ssh(self, command):
@@ -81,13 +83,13 @@ class ssh_session:
     def scp(self, src, dst):
 
         return self.__exec("scp %s %s@%s:%s" \
-                                             % (src, session.user, session.host, dst))
+                                             % (src, self.user, self.host, dst))
 
     def exists(self, file):
 
         "Retrieve file permissions of specified remote file."
         seen = self.ssh("/bin/ls -ld %s" % file)
-        if string.find(seen, "No such file") > -1:
+        if seen.find("No such file") > -1:
             return None # File doesn't exist
         else:
             return seen.split()[0] # Return permission field of listing.

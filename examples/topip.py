@@ -148,7 +148,7 @@ def main():
     if '-n' in options:
         average_n = int(options['-n'])
     else:
-        average_n = None
+        average_n = 1
     if '-v' in options:
         verbose = True
     else:
@@ -208,12 +208,12 @@ def main():
     if len(ip_list) < 1:
         if verbose: print('Warning: no networks connections worth looking at.')
         return 0
-    ip_list.sort(lambda x,y:cmp(y[1],x[1]))
+    ip_list.sort(key=lambda x:x[1])
 
     # generate some stats for the ip addresses found.
     if average_n <= 1:
-        average_n = None
-    s = stats(zip(*ip_list[0:average_n])[1]) # The * unary operator treats the list elements as arguments 
+        average_n = 1
+    s = stats(list(zip(*ip_list[0:average_n]))[1]) # The * unary operator treats the list elements as arguments 
     s['maxip'] = ip_list[0]
 
     # print munin-style or verbose results for the stats.

@@ -16,37 +16,42 @@ figure a way around this problem. """
 import pexpect
 import getpass
 import time
+import os
+import sys
+
+uid = os.getuid()
+if(uid!=0):
+    print('Privileged ports can only be forwarded by root. Please switch to root and try again.')
+    sys.exit(-1)
 
 # SMTP:25 IMAP4:143 POP3:110
-tunnel_command = 'ssh -C -N -f -L 25:127.0.0.1:25 -L 143:127.0.0.1:143 -L 110:127.0.0.1:110 %(user)@%(host)'
+tunnel_command = 'ssh -C -N -f -L 25:127.0.0.1:25 -L 143:127.0.0.1:143 -L 110:127.0.0.1:110 {0[user]}@{0[host]}'
 host = input('Hostname: ')
 user = input('Username: ')
 X = getpass.getpass('Password: ')
 
-def get_process_info ():
-
-    # This seems to work on both Linux and BSD, but should otherwise be considered highly UNportable.
-
-    ps = pexpect.run ('ps ax -O ppid')
-    pass
 def start_tunnel ():
     try:
-        ssh_tunnel = pexpect.spawn (tunnel_command % globals())
-        ssh_tunnel.expect ('password:')
+        cmd = tunnel_command.format(globals())
+        print(cmd)
+        ssh_tunnel = pexpect.spawn (cmd)
+        ssh_tunnel.expect ('(?i)password:')
         time.sleep (0.1)
         ssh_tunnel.sendline (X)
         time.sleep (60) # Cygwin is slow to update process status.
         ssh_tunnel.expect (pexpect.EOF)
 
     except Exception as e:
-        print(str(e))
+        traceback.print_exc()
+
 
 def main ():
-
     while True:
-        ps = pexpect.spawn ('ps')
+        # ps = pexpect.spawn ('ps') #Cygwin
+        ps = pexpect.spawn ('ps ax -O ppid') #Linux and BSD
         time.sleep (1)
         index = ps.expect (['/usr/bin/ssh', pexpect.EOF, pexpect.TIMEOUT])
+        ps.close()
         if index == 2:
             print('TIMEOUT in ps command...')
             print(str(ps))
@@ -58,7 +63,7 @@ def main ():
             time.sleep (11)
             print('tunnel OK')
         else:
-            # print 'tunnel OK'
+            # print('tunnel OK')
             time.sleep (7)
 
 if __name__ == '__main__':
