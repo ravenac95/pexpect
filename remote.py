@@ -131,7 +131,11 @@ def auto_password(pexpect_session, password, context_shell=None):
         return (0, pexpect_session.before)
     elif(r==5):
         pexpect_session.sendline('yes')
-        r = pexpect_session.expect(['(?i)password: |passphrase for key', patt_end])
+        # The 'continue connecting.*\? ' may occur zero to two times.
+        r = pexpect_session.expect(['(?i)password: |passphrase for key', patt_end, 'continue connecting.*\? '])
+        if(r==2):
+            pexpect_session.sendline('yes')
+            r = pexpect_session.expect(['(?i)password: |passphrase for key', patt_end])
         if(r==1):
             return (0, pexpect_session.before)
     # Reachs the password prompt
@@ -294,6 +298,7 @@ class RemoteShell(object):
         return 0
     def logout(self):
         assert(self.s!=None)
+        # Quit users automatically. Cool? :)
         for i in range(0, len(self.prompt_stack)-1):
             self.quit_user()
         assert(len(self.prompt_stack)==1)
@@ -348,10 +353,10 @@ class RemoteShell(object):
         '''Make the session more robust:
 
         1) Switch to Bash if current shell is not Bash. Csh and other shells are hard to use. Bash is widely available on nowadays UNIX-like systems.
-	
-	2) Force sending SIGHUP to jobs when logout. See https://bugzilla.mindrot.org/show_bug.cgi?id=52(Comment 23,35,43 => OpenSSH-4.6p1), http://www.snailbook.com/faq/background-jobs.auto.html(shopt can not fix the xterm example, I have to do "jobs -p | xargs kill -9" before logoout).
+        
+        2) Force sending SIGHUP to jobs when logout. See https://bugzilla.mindrot.org/show_bug.cgi?id=52(Comment 23,35,43 => OpenSSH-4.6p1), http://www.snailbook.com/faq/background-jobs.auto.html(shopt can not fix the xterm example, I have to do "jobs -p | xargs kill -9" before logoout).
 
-	3) Make sure all commands' output are in English.
+        3) Make sure all commands' output are in English.
 
         4) Set the shell prompt to something more unique than # or $. This makes it easier for the sync_prompt() method to match the shell prompt unambiguously.
         '''
@@ -421,7 +426,7 @@ class SshHost(RemoteShell):
             self.s.sendline('%s %s'%(self.ssh_path, userhost))
         #s.setecho(False) doesn't make sence
         #Some hosts don't output "Last login: ".
-        r = self.s.expect(['(?mi)not found', '(?mi)No route to host', '(?mi)Name or service not known', '(?mi)Connection refused', '(?i)Host key verification failed', 'continue connecting.*\? $', '(?i)password: $|passphrase for key', self.GENERIC_PATT_PROMPT])
+        r = self.s.expect(['(?mi)not found', '(?mi)No route to host', '(?mi)Name or service not known', '(?mi)Connection refused', '(?i)Host key verification failed', 'continue connecting.*\? ', '(?i)password: $|passphrase for key', self.GENERIC_PATT_PROMPT])
         if(r==0 or r==1 or r==2 or r==3 or r==4):
             self._close_session(0)
             if(r==0):
@@ -433,7 +438,11 @@ class SshHost(RemoteShell):
             return 0
         elif(r==5):
             self.s.sendline('yes')
-            r = self.s.expect(['(?i)password: $|passphrase for key', self.GENERIC_PATT_PROMPT])
+            # The 'continue connecting.*\? ' may occur zero to two times.
+            r = self.s.expect(['(?i)password: $|passphrase for key', self.GENERIC_PATT_PROMPT, 'continue connecting.*\? '])
+            if(r==2):
+                self.s.sendline('yes')
+                r = self.s.expect(['(?i)password: $|passphrase for key', self.GENERIC_PATT_PROMPT])
             if(r==1):
                 return 0
         # Reachs the password prompt
@@ -491,7 +500,7 @@ class TelnetHost(RemoteShell):
 class Multihop(RemoteShell):
     '''The wrapper for the remote shell of a host between which and localhost are multi hops and each hop is a SSH/Telnet server.
 
-    TODO: Ssh/Telnet outputs "Connection closed by foreign host." when the remote host crashed. How to determine which hop crashed in Multihop? 
+    TODO: Ssh/Telnet outputs "Connection closed by foreign host." when the remote host crashed. How to determine which hop crashed in Multihop? Or is it possible?
 
     Examples
     ========
@@ -508,9 +517,8 @@ class Multihop(RemoteShell):
         log_file.close()
     '''
     def __init__(self, hops_info, context_shell=None, logfile=None):
+        '''Multihop overloads login() and logout(), and delievers all other public calls to the last hop object. It doesn't depend on any member data of RemoteShell. So it's not necessary to initialize parent object(s).'''
         assert(len(hops_info)>=1)
-        super(Multihop, self).__init__(hops_info[-1]['host'], hops_info[-1]['user'], None, context_shell)
-        self.logfile = logfile
         if(context_shell!=None):
             assert(logfile==None)
         self.hops = list()
@@ -527,22 +535,33 @@ class Multihop(RemoteShell):
             self.hops.append(shell)
             curr_context = shell
             logfile = None
-    def _login_timely(self):
-        assert(self.s==None)
+    def login(self, robust=False):
+        # Don't need assertion here since there are some of them in every hop.
+        b_robust = False
         for ind in range(0, len(self.hops)):
-            iret = self.hops[ind].login(robust=False)
+            # Doing robust steps on intermediate hops doesn't make sence. 
+            if(ind == len(self.hops)-1):
+                b_robust = robust
+            iret = self.hops[ind].login(robust=b_robust)
             if(iret!=0):
                 for ind2 in range(ind-1, -1, -1):
                     self.hops[ind2].logout()
                 return iret
-        self.s = self.hops[0].s
         return 0
     def logout(self):
-        assert(self.s!=None)
+        # Don't need assertion here since there are some of them in every hop.
         for hop in reversed(self.hops):
             hop.logout()
-        # self.hops[0] has closed the pexpect session if necessary. 
-        self.s = None
+    def docmd(self, cmd, timeout=60):
+        return self.hops[-1].docmd(cmd, timeout)
+    def switch_user(self, other_user, other_pass, robust=False):
+        return self.hops[-1].switch_user(other_user, other_pass, robust)
+    def quit_user(self):
+        return self.hops[-1].quit_user()
+    def robust_steps(self):
+        return self.hops[-1].robust_steps()
+    def sync_prompt(self):
+        return self.hops[-1].sync_prompt()
 
 class AbstractFtp(object):
     def __init__(self, host, user, password, context_shell=None, logfile=None):
@@ -649,11 +668,11 @@ def _test_passwd_db():
     <user name='geo' passwd='geo.geo'/>
     <user name='root' passwd='inetinet'/>
       <host name='node'>
-	<user name='geo' passwd='geo.geo'/>
-	<user name='root' passwd='inetinet'/>
+        <user name='geo' passwd='geo.geo'/>
+        <user name='root' passwd='inetinet'/>
       </host>
       <host name='switch'>
-	<user name='root' passwd='inetinet'/>
+        <user name='root' passwd='inetinet'/>
       </host>
   </host>
   <host name='genet'>
@@ -707,12 +726,13 @@ def _test_multihop():
     subprocess.getstatusoutput('rm -fr %s'%LOG_FILE)
     log_file = open(LOG_FILE, 'wb+')
 
-    x2 = dict(host='x2',user='geo',password='geo.geo',type='telnet')
-    switch = dict(host='192.168.1.15',user='root',password='inetinet',type='ssh')
-    hops_info = (x2,switch)
-    shell = Multihop(hops_info,logfile=log_file)
-    shell.login()
+    genet = dict(host='192.158.124.249',user='geo',password='geo.geo',type='ssh')
+    x2 = dict(host='192.158.124.137',user='geo',password='geo.geo',type='telnet')
+    shell = Multihop((genet, x2), logfile=log_file)
+    shell.login(robust=True)
     shell.docmd('uname -a')
+    shell.switch_user('root', 'inetinet')
+    shell.docmd('ost')
     shell.logout()
 
     log_file.write(b'done.\n')
@@ -768,9 +788,9 @@ def _test_unique_prompt():
 '''
 
 def main():
-    _test_passwd_db()
+    #_test_passwd_db()
     #_test_auto_password()
-    #_test_multihop()
+    _test_multihop()
     #_test_unique_prompt()
 
 if __name__=='__main__':
