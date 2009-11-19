@@ -31,7 +31,7 @@ def is_binary (filename):
     wholething = fin.read()
     fin.close()
     for c in wholething:
-        if ord(c) & 0x80:
+        if c & 0x80:
             return 1
     return 0
 
@@ -43,7 +43,7 @@ def is_kb_sticky (filename):
 
     try:
         s = pexpect.spawn ('cvs status %s' % filename)
-        i = s.expect (['Sticky Options:\s*(.*)\r\n',  'Status: Unknown'])
+        i = s.expect (['Sticky Options:\s*(\S*)\s*\r\n',  'Status: Unknown'])
         if i==1 and VERBOSE:
             print('File not part of CVS repository:', filename)
             return 1 # Pretend it's OK.
@@ -62,20 +62,21 @@ def cvs_admin_kb (filename):
     """This uses 'cvs admin' to set the '-kb' sticky option. """
 
     s = pexpect.run ('cvs admin -kb %s' % filename)
+    print('cvs admin -kb %s' % filename)
     # There is a timing issue. If I run 'cvs admin' too quickly
     # cvs sometimes has trouble obtaining the directory lock.
     time.sleep(1)
 	
-def walk_and_clean_cvs_binaries (arg, dirname, names):
+def walk_and_clean_cvs_binaries (dirpath, dirnames, filenames):
 
     """This contains the logic for processing files. This is the os.path.walk
     callback. This skips dirnames that end in CVS. """
 
-    if len(dirname)>3 and dirname[-3:]=='CVS':
+    if dirpath.endswith('CVS'):
         return
-    for n in names:
-        fullpath = os.path.join (dirname, n)
-        if os.path.isdir(fullpath) or os.path.islink(fullpath):
+    for n in filenames:
+        fullpath = os.path.join (dirpath, n)
+        if os.path.islink(fullpath):
             continue
         if is_binary(fullpath):
             if not is_kb_sticky (fullpath):
@@ -88,7 +89,10 @@ def main ():
         root = '.'
     else:
         root = sys.argv[1]
-    os.path.walk (root, walk_and_clean_cvs_binaries, None)
+    # CVS don't like absolute pathnames.
+    os.chdir(root)
+    for dirpath, dirnames, filenames in os.walk ('.'):
+        walk_and_clean_cvs_binaries(dirpath, dirnames, filenames)
 
 if __name__ == '__main__':
     main ()
