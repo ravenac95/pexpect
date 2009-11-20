@@ -387,7 +387,7 @@ class RemoteShell(object):
             hostname = self.docmd('hostname')
             self._hostname = hostname
         unique_prompt = '%s@%s_PEXPECT> '%(self.user_stack[-1], self._hostname)
-        patt_unique_prompt = re.compile('(?m)^'+unique_prompt)
+        patt_unique_prompt = re.compile('(?m)^'+re.escape(unique_prompt))
         self.docmd('unset PROMPT_COMMAND')
         cmd_set_sh = 'PS1="%s"'%unique_prompt
         self.s.sendline(cmd_set_sh)
@@ -517,7 +517,12 @@ class Multihop(RemoteShell):
         log_file.close()
     '''
     def __init__(self, hops_info, context_shell=None, logfile=None):
-        '''Multihop overloads login() and logout(), and delievers all other public calls to the last hop object. It doesn't depend on any member data of RemoteShell. So it's not necessary to initialize parent object(s).'''
+        '''Multihop is intentionally designed to be a proxy of the last hop. Multihop's data and method members:
+	1) login()/logout()/hops,
+	2) All method members of RemoteShell,
+	3) Access to other members are dispatched to the last hop. 
+	So it's not appropriate to initialize any base class here.
+	'''
         assert(len(hops_info)>=1)
         if(context_shell!=None):
             assert(logfile==None)
@@ -552,16 +557,11 @@ class Multihop(RemoteShell):
         # Don't need assertion here since there are some of them in every hop.
         for hop in reversed(self.hops):
             hop.logout()
-    def docmd(self, cmd, timeout=60):
-        return self.hops[-1].docmd(cmd, timeout)
-    def switch_user(self, other_user, other_pass, robust=False):
-        return self.hops[-1].switch_user(other_user, other_pass, robust)
-    def quit_user(self):
-        return self.hops[-1].quit_user()
-    def robust_steps(self):
-        return self.hops[-1].robust_steps()
-    def sync_prompt(self):
-        return self.hops[-1].sync_prompt()
+    def __getattr__(self, name):
+        # Member access dispatching.
+        print('Multihop::__getattr__(self, %s)'%str(name))
+        return self.hops[-1].__getattribute__(name)
+
 
 class AbstractFtp(object):
     def __init__(self, host, user, password, context_shell=None, logfile=None):
@@ -729,6 +729,8 @@ def _test_multihop():
     genet = dict(host='192.158.124.249',user='geo',password='geo.geo',type='ssh')
     x2 = dict(host='192.158.124.137',user='geo',password='geo.geo',type='telnet')
     shell = Multihop((genet, x2), logfile=log_file)
+    # Verify member access dispatching. Use "identity equality" here.
+    assert(id(shell.userinfo)==id(shell.hops[-1].userinfo))
     shell.login(robust=True)
     shell.docmd('uname -a')
     shell.switch_user('root', 'inetinet')
