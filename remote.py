@@ -64,13 +64,13 @@ class PasswordXmlDb(object):
     '''
     def __init__(self, passwd_db):
         self.db = passwd_db
+    @staticmethod
     def parse(passwd_db_file):
         # ElementTree is introduced in by Python 2.5.
         from xml.etree import ElementTree
         assert(os.path.isfile(passwd_db_file))
         passwd_db = ElementTree.parse(passwd_db_file)
         return PasswordXmlDb(passwd_db)
-    parse = staticmethod(parse)
     def query(self, host_path, username):
         host_path = host_path.strip().strip('/')
         hosts = host_path.split('/')
@@ -138,9 +138,9 @@ def auto_password(pexpect_session, password, context_shell=None):
             r = pexpect_session.expect(['(?i)password: |passphrase for key', patt_end])
         if(r==1):
             return (0, pexpect_session.before)
-    # Reachs the password prompt
+    # Reachs the password prompt.
     _send_pass(pexpect_session, password)
-    r = pexpect_session.expect(['(?i)permission denied', '(?i)password: $|passphrase for key', '\r\n'])
+    r = pexpect_session.expect(['(?i)permission denied', '(?i)password: |passphrase for key', '\r\n'])
     if(r==0):
         _close_session(pexpect_session, context_shell, 0)
         return (-2, None)
@@ -177,7 +177,7 @@ Connection to sunfire closed.
         # Connection closed by foreign host. 
         # Connection to xxx closed by foreign host.
         Note that there may be some control characters before and/or after the message. 
-        So don't place '^' and/or '$' to the pattern!
+        So don't place '^' at the begining of the pattern!
         '''
         pexpect_session.expect('(?mi)Connection .*closed')
     if(context_shell==None):
@@ -267,7 +267,7 @@ class RemoteShell(object):
             self.s.expect(self.prompt)
             return None
     def _login_timely(self):
-        raise Exception('Not impl.')
+        raise NotImplementedError('RemoteShell._login_timely is an abstract method.')
     def login(self, robust=False):
         '''Return value:
             0  - OK
@@ -291,10 +291,12 @@ class RemoteShell(object):
                 if(iret<0):
                     self._pop_prompt()
                     del self.user_stack[-1:]
-                    return -3
+                    return -4
         except pexpect.TIMEOUT:
+            #import traceback
+            #traceback.print_exc()
             self._close_session(session_state)
-            return -4
+            return -5
         return 0
     def logout(self):
         assert(self.s!=None)
@@ -313,7 +315,7 @@ class RemoteShell(object):
         '''
         assert self.s!=None
         self.s.sendline('su - %s'%other_user)
-        r = self.s.expect(['(?i)Unknown id:', '(?i)password: $', self.GENERIC_PATT_PROMPT])
+        r = self.s.expect(['(?i)Unknown id:', '(?i)password: ', self.GENERIC_PATT_PROMPT])
         if(r==0):
             self.s.expect(self.prompt)
             return -1
@@ -327,7 +329,7 @@ class RemoteShell(object):
                     del self.user_stack[-1:]
                     return -3
             return 0
-        # Reachs the password prompt
+        # Reachs the password prompt.
         _send_pass(self.s, other_pass)
         r = self.s.expect(['(?i)authentication failure', '(?i)su: Sorry', self.GENERIC_PATT_PROMPT])
         if(r==0 or r==1):
@@ -426,7 +428,7 @@ class SshHost(RemoteShell):
             self.s.sendline('%s %s'%(self.ssh_path, userhost))
         #s.setecho(False) doesn't make sence
         #Some hosts don't output "Last login: ".
-        r = self.s.expect(['(?mi)not found', '(?mi)No route to host', '(?mi)Name or service not known', '(?mi)Connection refused', '(?i)Host key verification failed', 'continue connecting.*\? ', '(?i)password: $|passphrase for key', self.GENERIC_PATT_PROMPT])
+        r = self.s.expect(['(?mi)not found', '(?mi)No route to host', '(?mi)Name or service not known', '(?mi)Connection refused', '(?i)Host key verification failed', 'continue connecting.*\? ', '(?i)password: |passphrase for key', self.GENERIC_PATT_PROMPT])
         if(r==0 or r==1 or r==2 or r==3 or r==4):
             self._close_session(0)
             if(r==0):
@@ -439,15 +441,15 @@ class SshHost(RemoteShell):
         elif(r==5):
             self.s.sendline('yes')
             # The 'continue connecting.*\? ' may occur zero to two times.
-            r = self.s.expect(['(?i)password: $|passphrase for key', self.GENERIC_PATT_PROMPT, 'continue connecting.*\? '])
+            r = self.s.expect(['(?i)password: |passphrase for key', self.GENERIC_PATT_PROMPT, 'continue connecting.*\? '])
             if(r==2):
                 self.s.sendline('yes')
-                r = self.s.expect(['(?i)password: $|passphrase for key', self.GENERIC_PATT_PROMPT])
+                r = self.s.expect(['(?i)password: |passphrase for key', self.GENERIC_PATT_PROMPT])
             if(r==1):
                 return 0
-        # Reachs the password prompt
+        # Reachs the password prompt.
         _send_pass(self.s, self.userinfo.password)
-        r = self.s.expect(['(?i)permission denied', '(?i)password: $|passphrase for key', self.GENERIC_PATT_PROMPT])
+        r = self.s.expect(['(?i)permission denied', '(?i)password: |passphrase for key', self.GENERIC_PATT_PROMPT])
         if(r==0):
             self._close_session(0)
             return -3
@@ -474,7 +476,7 @@ class TelnetHost(RemoteShell):
         else:
             self.s = self.context_shell.s
             self.s.sendline('%s %s'%(self.telnet_path, self.userinfo.host))
-        r = self.s.expect(['(?mi)not found', '(?mi)No route to host', '(?mi)Connection refused', '(?im)Connection closed by foreign host', '(?i)(login: |Username: )$'])
+        r = self.s.expect(['(?mi)not found', '(?mi)No route to host', '(?mi)Connection refused', '(?mi)Connection .*closed', '(?i)(?<!last )login: |Username: '])
         if(r==0 or r==1 or r==2 or r==3):
             self._close_session(0)
             if(r==0):
@@ -482,18 +484,29 @@ class TelnetHost(RemoteShell):
             else:
                 iret = -2
             return iret
+        # Reachs the username prompt.
         self.s.sendline(self.userinfo.user)
-        r = self.s.expect(['(?im)Connection closed by foreign host', '(?i)password: $'])
+        r = self.s.expect(['(?mi)Connection .*closed', '(?i)password: '])
         if(r==0):
             self._close_session(0)
             return -2
+        # Reachs the password prompt.
         _send_pass(self.s, self.userinfo.password)
-        r = self.s.expect(['(?im)Connection closed by foreign host', '(?i)(login: |Username: )$', self.GENERIC_PATT_PROMPT])
+        r = self.s.expect(['(?mi)Connection .*closed', '(?i)(?<!last )login: |Username: ', self.GENERIC_PATT_PROMPT])
         if(r==0):
             self._close_session(0)
             return -2
         elif(r==1):
-            self._close_session(1)
+            # Solaris is strange: Not Ctrl-C but Ctrl-D causes the telnet server close the connection.
+            #self._close_session(1) doesn't work if the telnet server is on Solaris.
+            while(1):
+                self.s.sendline(self.userinfo.user)
+                self.s.expect(['(?i)password: '])
+                _send_pass(self.s, self.userinfo.password)
+                r = self.s.expect(['(?mi)Connection .*closed', '(?i)(?<!last )login: |Username: '])
+                if(r==0):
+                    break
+            self._close_session(0)
             return -3
         return 0
 
@@ -518,11 +531,11 @@ class Multihop(RemoteShell):
     '''
     def __init__(self, hops_info, context_shell=None, logfile=None):
         '''Multihop is intentionally designed to be a proxy of the last hop. Multihop's data and method members:
-	1) login()/logout()/hops,
-	2) All method members of RemoteShell,
-	3) Access to other members are dispatched to the last hop. 
-	So it's not appropriate to initialize any base class here.
-	'''
+        1) login()/logout()/hops,
+        2) All method members of RemoteShell,
+        3) Access to other members are dispatched to the last hop. 
+        So it's not appropriate to initialize any base class here.
+        '''
         assert(len(hops_info)>=1)
         if(context_shell!=None):
             assert(logfile==None)
@@ -559,7 +572,7 @@ class Multihop(RemoteShell):
             hop.logout()
     def __getattr__(self, name):
         # Member access dispatching.
-        print('Multihop::__getattr__(self, %s)'%str(name))
+        #print('Multihop::__getattr__(self, %s)'%str(name))
         return self.hops[-1].__getattribute__(name)
 
 
@@ -619,7 +632,7 @@ class Lftp(AbstractFtp):
         else:
             self.s = self.context_shell.s
             self.s.sendline(lftp_cmd)
-        r = self.s.expect('(?i)password: $')
+        r = self.s.expect('(?i)password: ')
         _send_pass(self.s,self.userinfo.password)
         # Attention: 'ls' output is async with the input and outputs exact prompt two times!
         self.s.sendline('ls')
@@ -647,13 +660,13 @@ class Sftp(AbstractFtp):
         else:
             self.s = self.context_shell.s
             self.s.sendline(sftp_cmd)
-        r = self.s.expect(['(?i)password: $', 'continue connecting.*\?'])
+        r = self.s.expect(['(?i)password: ', 'continue connecting.*\?'])
         if(r==1):
             self.s.sendline('yes')
-            r = self.s.expect(['(?i)password: $'])
-        # Reachs the password prompt
+            r = self.s.expect(['(?i)password: '])
+        # Reachs the password prompt.
         _send_pass(self.s,self.userinfo.password)
-        r = self.s.expect(['(?i)password: $', self.prompt])
+        r = self.s.expect(['(?i)password: ', self.prompt])
         if(r==0):
             self._close_session(1)
             return -1
@@ -741,6 +754,26 @@ def _test_multihop():
     log_file.close()
     print('done.')
 
+def _test_solaris_telnet():
+    LOG_FILE = 'remote.log'
+    import subprocess
+    subprocess.getstatusoutput('rm -fr %s'%LOG_FILE)
+    log_file = open(LOG_FILE, 'wb+')
+    # Correct password
+    h1 = TelnetHost('sunfire', 'geouser', 'geouser', logfile=log_file)
+    iret = h1.login(True)
+    assert(iret==0)
+    h1.logout()
+    # Incorrect password
+    h1 = TelnetHost('sunfire', 'geouser', 'geo', logfile=log_file)
+    iret = h1.login()
+    assert(iret==-3)
+    # Root login
+    h1 = TelnetHost('sunfire', 'root', 'geouser', logfile=log_file)
+    iret = h1.login(True)
+    assert(iret==-2)
+    log_file.close()
+
 def _test_unique_prompt():
     import time
     time_start = time.time()
@@ -792,8 +825,9 @@ def _test_unique_prompt():
 def main():
     #_test_passwd_db()
     #_test_auto_password()
-    _test_multihop()
+    #_test_multihop()
     #_test_unique_prompt()
+    _test_solaris_telnet()
 
 if __name__=='__main__':
     main()
