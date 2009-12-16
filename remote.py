@@ -102,9 +102,9 @@ def auto_password(pexpect_session, password, context_shell=None):
 
     1) Running program will not go into a login shell. So that I CANN'T REUSE this function in SshHost.login().
 
-    2) The password prompt may or may not occur.
+    2) The password/passphrase prompt may or may not occur.
 
-    3) If passwd is incorrect, the password prompt or "permission denied" will occur.
+    3) If password/passphrase is incorrect, the password/passphrase prompt will occur again.
 
     Return value is (status, part_output). status::
 
@@ -116,6 +116,19 @@ def auto_password(pexpect_session, password, context_shell=None):
         The output before authentication readed so far when status is 0. None when status is not 0.
 
     If the status is not 0, the pexpect session has been closeed appropriately after the function quit.
+
+    An example of passphase:
+
+        zhichyu@w-shpd-zcyu:~$ ssh zhichyu@genet
+        Enter passphrase for key '/home/zhichyu/.ssh/id_rsa': 
+        Enter passphrase for key '/home/zhichyu/.ssh/id_rsa': 
+        Enter passphrase for key '/home/zhichyu/.ssh/id_rsa': 
+        zhichyu@192.158.124.249's password: 
+        Permission denied, please try again.
+        zhichyu@192.158.124.249's password: 
+        Last login: Wed Dec 16 10:37:32 2009 from w-shpd-zcyu.global.tektronix.net
+        zhichyu@sh-plat-genet:~> 
+
     '''
     patt_end = None
     if(context_shell==None):
@@ -138,16 +151,24 @@ def auto_password(pexpect_session, password, context_shell=None):
             r = pexpect_session.expect(['(?i)password: |passphrase for key', patt_end])
         if(r==1):
             return (0, pexpect_session.before)
-    # Reachs the password prompt.
+    # Reachs the password/passphrase prompt
     _send_pass(pexpect_session, password)
-    r = pexpect_session.expect(['(?i)permission denied', '(?i)password: |passphrase for key', '\r\n'])
+    # Consumes '\r\n' caused by _send_pass()
+    pexpect_session.expect('\r\n')
+    # The line "Permission denied, please try again." may or may not occur before the password/passphrase prompt.
+    r = pexpect_session.expect(['(?i)password: $|passphrase for key', 'please try again', '\r\n', patt_end])
+    if(r==1):
+        # Consumes '\r\n' of the line "please try again."
+        pexpect_session.expect('\r\n')
+        r = pexpect_session.expect(['(?i)password: $|passphrase for key'])
     if(r==0):
-        _close_session(pexpect_session, context_shell, 0)
-        return (-2, None)
-    elif(r==1):
+        # The password/passphrase prompt occurs again.
         _close_session(pexpect_session, context_shell, 1)
         return (-2, None)
-    return (0, pexpect_session.before+'\r\n')
+    part_output = pexpect_session.before
+    if(r==2):
+        part_output += '\r\n'
+    return (0, part_output)
 
 def _close_session(pexpect_session, context_shell, session_state=2):
     '''End the session.
@@ -447,13 +468,10 @@ class SshHost(RemoteShell):
                 r = self.s.expect(['(?i)password: |passphrase for key', self.GENERIC_PATT_PROMPT])
             if(r==1):
                 return 0
-        # Reachs the password prompt.
+        # Reachs the password/passphrase prompt
         _send_pass(self.s, self.userinfo.password)
-        r = self.s.expect(['(?i)permission denied', '(?i)password: |passphrase for key', self.GENERIC_PATT_PROMPT])
+        r = self.s.expect(['(?i)password: |passphrase for key', self.GENERIC_PATT_PROMPT])
         if(r==0):
-            self._close_session(0)
-            return -3
-        elif(r==1):
             self._close_session(1)
             return -3
         return 0
