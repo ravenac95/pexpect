@@ -389,7 +389,7 @@ class RemoteShell(object):
         # 2) Neither /sbin/sh nor /usr/bin/bash doesn't support export. 
         # 3) whoami, bash are not at the standard location.
         # So use Bash whenever possible!
-        shell_name = self.docmd('echo $SHELL')
+        shell_name = self.docmd('echo $0')
         if(not shell_name.endswith('/bash')):
             if(self._bash_path==None):
                 bash_path = self.docmd('which bash')
