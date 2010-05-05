@@ -377,9 +377,9 @@ class RemoteShell(object):
 
         1) Switch to Bash if current shell is not Bash. Csh and other shells are hard to use. Bash is widely available on nowadays UNIX-like systems.
         
-        2) Force sending SIGHUP to jobs when logout. See https://bugzilla.mindrot.org/show_bug.cgi?id=52(Comment 23,35,43 => OpenSSH-4.6p1), http://www.snailbook.com/faq/background-jobs.auto.html(shopt can not fix the xterm example, I have to do "jobs -p | xargs kill -9" before logoout).
+        2) Force sending SIGHUP to jobs when logout. See https://bugzilla.mindrot.org/show_bug.cgi?id=52(Comment 23,35,43 => OpenSSH-4.6p1), http://www.snailbook.com/faq/background-jobs.auto.html(shopt can not fix the xterm example, I have to do "jobs -p | xargs kill -9" before logoout). FYI, on the other side, disown can be used to mark some jobs so that SIGHUP is not sent to the job if the shell receives a SIGHUP.
 
-        3) Make sure all commands' output are in English.
+        3) Make sure all commands' output are in English. Otherwise pexpect is very likely to be stuck.
 
         4) Set the shell prompt to something more unique than # or $. This makes it easier for the sync_prompt() method to match the shell prompt unambiguously.
         '''
